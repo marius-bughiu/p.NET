@@ -16,21 +16,32 @@
     <PackageId>p.NET</PackageId>
     <Title>p.NET — Private .NET APIs at public-member speed</Title>
     <Description>Access every private .NET API as an extension member. Import PNet.System.Collections.Generic and just use list.p_size, dict.p_count, dict.p_buckets, etc. Zero reflection, zero allocations, zero overhead — extension members are generated at build time and emit direct UnsafeAccessor calls. AOT- and trim-compatible.</Description>
-    <!-- NU5128: multi-tfm package with no dependencies — safe to ignore -->
-    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <!-- NU5128: multi-tfm package with no dependencies — safe to ignore.
+         SYSLIB0011 (BinaryFormatter), SYSLIB5006 (post-quantum-crypto preview): we deliberately
+         expose every private member of every public BCL type, including types behind these
+         experimental/obsolete diagnostics. Consumers using p_* members on those types accept the same risk. -->
+    <NoWarn>$(NoWarn);NU5128;SYSLIB0011;SYSLIB0036;SYSLIB0050;SYSLIB5006;CS0618;CS0612;CA1416</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Versioning (MinVer reads git tags like v1.0.0)">
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerDefaultPreReleaseIdentifiers>beta</MinVerDefaultPreReleaseIdentifiers>
+    <MinVerSkip Condition="'$(Configuration)' == 'Debug'">true</MinVerSkip>
+    <!-- Fallback only for Debug builds where MinVer is skipped. Release builds get version from the git tag. -->
+    <PackageVersion>1.0.0-dev.$([System.DateTime]::UtcNow.ToString("yyMMddHHmm"))</PackageVersion>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MinVer" PrivateAssets="all"
+                      IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
     <ProjectReference Include="..\PNet.Generators\PNet.Generators.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <PropertyGroup Label="Generator configuration">
-    <!-- Semicolon-separated list of BCL namespaces the generator should emit extensions for.
-         The generator walks the runtime's impl DLLs (System.Private.CoreLib etc.) with PEReader
-         and emits extension members for every private member of every type in these namespaces. -->
-    <PNetTargetNamespaces>System.Collections.Generic</PNetTargetNamespaces>
+    <!-- Generator scans every namespace in every runtime DLL by default.
+         Set PNetTargetNamespaces to a semicolon-separated list to scope down. -->
   </PropertyGroup>
 
   <ItemGroup>

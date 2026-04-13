@@ -40,32 +40,23 @@ public sealed class ExtensionMembersGenerator : IIncrementalGenerator
         {
             var targetNamespaces = pair.Left;
             var consumerCompilation = pair.Right;
-            if (targetNamespaces.Length == 0)
-            {
-                var desc = new DiagnosticDescriptor(
-                    id: "PNET0100",
-                    title: "PNetTargetNamespaces not configured",
-                    messageFormat: "The p.net build-time generator saw no PNetTargetNamespaces MSBuild property; no extension members will be generated.",
-                    category: "PNet",
-                    defaultSeverity: DiagnosticSeverity.Warning,
-                    isEnabledByDefault: true);
-                spc.ReportDiagnostic(Diagnostic.Create(desc, Location.None));
-                return;
-            }
 
             try
             {
-                var nsSet = new HashSet<string>(targetNamespaces, StringComparer.Ordinal);
-                var typesByNamespace = new Dictionary<string, List<TypeModel>>(StringComparer.Ordinal);
-                foreach (var ns in targetNamespaces) typesByNamespace[ns] = new List<TypeModel>();
+                // Empty / missing PNetTargetNamespaces ⇒ scan every namespace in every runtime DLL.
+                HashSet<string>? nsSet = targetNamespaces.Length == 0
+                    ? null
+                    : new HashSet<string>(targetNamespaces, StringComparer.Ordinal);
 
                 var runtimePaths = RuntimeResolver.GetRuntimeImplAssemblies();
                 var scanned = PeScanner.Scan(runtimePaths, nsSet, consumerCompilation);
 
+                var typesByNamespace = new Dictionary<string, List<TypeModel>>(StringComparer.Ordinal);
                 foreach (var type in scanned)
                 {
-                    if (typesByNamespace.TryGetValue(type.Namespace, out var bucket))
-                        bucket.Add(type);
+                    if (!typesByNamespace.TryGetValue(type.Namespace, out var bucket))
+                        typesByNamespace[type.Namespace] = bucket = new List<TypeModel>();
+                    bucket.Add(type);
                 }
 
                 foreach (var kv in typesByNamespace)

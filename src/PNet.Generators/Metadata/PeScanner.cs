@@ -20,7 +20,7 @@ internal static class PeScanner
 {
     public static IReadOnlyList<TypeModel> Scan(
         IReadOnlyList<string> runtimeImplPaths,
-        ISet<string> targetNamespaces,
+        ISet<string>? targetNamespaces,
         Compilation consumerCompilation)
     {
         var results = new List<TypeModel>();
@@ -40,7 +40,7 @@ internal static class PeScanner
         return results;
     }
 
-    private static void ScanAssembly(string path, ISet<string> targetNamespaces, Compilation consumer, List<TypeModel> results)
+    private static void ScanAssembly(string path, ISet<string>? targetNamespaces, Compilation consumer, List<TypeModel> results)
     {
         using var stream = File.OpenRead(path);
         using var pe = new PEReader(stream);
@@ -53,7 +53,8 @@ internal static class PeScanner
             if (type.IsNested) continue;
 
             var ns = type.Namespace.IsNil ? "" : reader.GetString(type.Namespace);
-            if (!targetNamespaces.Contains(ns)) continue;
+            if (string.IsNullOrEmpty(ns)) continue; // skip the global namespace
+            if (targetNamespaces is not null && !targetNamespaces.Contains(ns)) continue;
 
             var rawName = reader.GetString(type.Name);
             if (rawName.Length == 0 || rawName[0] == '<') continue;
@@ -71,12 +72,18 @@ internal static class PeScanner
 
             var typeParamNames = new List<string>();
             var typeParamConstraints = new List<string>();
+            bool hasUnsupportedConstraints = false;
             foreach (var gp in type.GetGenericParameters())
             {
                 var gParam = reader.GetGenericParameter(gp);
                 typeParamNames.Add(reader.GetString(gParam.Name));
                 typeParamConstraints.Add(BuildConstraintClause(reader, gParam));
+                // Type-level constraints (where T : IEquatable<T>, where T : SomeBaseClass) are hard to
+                // reproduce because they can reference generic parameters of the surrounding type. Skip
+                // the type entirely when any are present — better than emitting code that won't compile.
+                if (gParam.GetConstraints().Count > 0) hasUnsupportedConstraints = true;
             }
+            if (hasUnsupportedConstraints) continue;
 
             var typeGenericContext = new GenericContext(typeParamNames, new string[0]);
 
@@ -219,11 +226,32 @@ internal static class PeScanner
         foreach (var h in handles)
         {
             var attr = reader.GetCustomAttribute(h);
-            if (attr.Constructor.Kind != HandleKind.MemberReference) continue;
-            var mref = reader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
-            if (mref.Parent.Kind != HandleKind.TypeReference) continue;
-            var tref = reader.GetTypeReference((TypeReferenceHandle)mref.Parent);
-            if (reader.GetString(tref.Name) == attributeName) return true;
+            switch (attr.Constructor.Kind)
+            {
+                case HandleKind.MemberReference:
+                    {
+                        var mref = reader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
+                        if (mref.Parent.Kind == HandleKind.TypeReference)
+                        {
+                            var tref = reader.GetTypeReference((TypeReferenceHandle)mref.Parent);
+                            if (reader.GetString(tref.Name) == attributeName) return true;
+                        }
+                        else if (mref.Parent.Kind == HandleKind.TypeDefinition)
+                        {
+                            var tdef = reader.GetTypeDefinition((TypeDefinitionHandle)mref.Parent);
+                            if (reader.GetString(tdef.Name) == attributeName) return true;
+                        }
+                        break;
+                    }
+                case HandleKind.MethodDefinition:
+                    {
+                        // Same-assembly attribute (e.g. IsByRefLikeAttribute defined inside CoreLib itself).
+                        var mdef = reader.GetMethodDefinition((MethodDefinitionHandle)attr.Constructor);
+                        var owner = reader.GetTypeDefinition(mdef.GetDeclaringType());
+                        if (reader.GetString(owner.Name) == attributeName) return true;
+                        break;
+                    }
+            }
         }
         return false;
     }

@@ -53,14 +53,14 @@ internal static class ExtensionEmitter
             : "<" + string.Join(", ", type.TypeParameterNames) + ">";
         var targetDisplay = "global::" + type.Namespace + "." + type.TypeName + targetGenericArgs;
 
-        // 1. Instance extensions under `extension<T...>(TargetType<T...> self)` block
+        // 1. Instance extensions under `extension<T...>(TargetType<T...> @this)` block
         var instanceMembers = type.Members.Where(m => m.Kind is MemberKind.InstanceField or MemberKind.InstanceMethod).ToList();
         if (instanceMembers.Count > 0)
         {
             sb.Append("    extension");
             if (type.TypeParameterNames.Count > 0)
                 sb.Append('<').Append(string.Join(", ", type.TypeParameterNames)).Append('>');
-            sb.Append('(').Append(targetDisplay).Append(" self)");
+            sb.Append('(').Append(targetDisplay).Append(" @this)");
             AppendConstraints(sb, type.TypeParameterConstraints);
             sb.AppendLine();
             sb.AppendLine("    {");
@@ -91,14 +91,14 @@ internal static class ExtensionEmitter
         {
             var refKind = "ref "; // fields always come back as ref so the caller can read and write
             sb.Append("        public ").Append(refKind).Append(member.ReturnTypeSignature).Append(' ').Append(member.WrapperName)
-              .Append(" { ").Append(Inlining).Append(" get => ref ").Append(accessorName).AppendLine("(self); }");
+              .Append(" { ").Append(Inlining).Append(" get => ref ").Append(accessorName).AppendLine("(@this); }");
             return;
         }
 
         // Instance method
         var returnPrefix = member.IsVoidReturn() ? "void" : (member.ReturnsByRef ? "ref " : "") + member.ReturnTypeSignature;
         var wrapperParams = FormatParams(member, includeSelf: false);
-        var callArgs = FormatCallArgs(member, "self");
+        var callArgs = FormatCallArgs(member, "@this");
 
         sb.Append("        ").Append(Inlining).AppendLine();
         sb.Append("        public ");
@@ -164,7 +164,7 @@ internal static class ExtensionEmitter
             case MemberKind.InstanceField:
                 sb.Append("ref ").Append(member.ReturnTypeSignature).Append(' ').Append(accessorName);
                 EmitGenericClause(sb, type.TypeParameterNames);
-                sb.Append('(').Append(targetDisplay).Append(" self)");
+                sb.Append('(').Append(targetDisplay).Append(" @this)");
                 AppendConstraints(sb, type.TypeParameterConstraints);
                 sb.AppendLine(";");
                 break;
@@ -173,7 +173,7 @@ internal static class ExtensionEmitter
                 sb.Append("ref ").Append(member.ReturnTypeSignature).Append(' ').Append(accessorName);
                 EmitGenericClause(sb, type.TypeParameterNames);
                 // Static field UnsafeAccessor requires a dummy first parameter of the type.
-                sb.Append('(').Append(targetDisplay).AppendLine(" self);");
+                sb.Append('(').Append(targetDisplay).AppendLine(" @this);");
                 break;
 
             case MemberKind.InstanceMethod:
@@ -181,7 +181,7 @@ internal static class ExtensionEmitter
                     var returnPrefix = member.IsVoidReturn() ? "void" : (member.ReturnsByRef ? "ref " : "") + member.ReturnTypeSignature;
                     sb.Append(returnPrefix).Append(' ').Append(accessorName);
                     EmitGenericClause(sb, MergeTypeParams(type.TypeParameterNames, member.MethodTypeParameters));
-                    sb.Append('(').Append(targetDisplay).Append(" self");
+                    sb.Append('(').Append(targetDisplay).Append(" @this");
                     AppendParams(sb, member, leadingComma: true);
                     sb.Append(")");
                     AppendConstraints(sb, type.TypeParameterConstraints);
@@ -194,7 +194,7 @@ internal static class ExtensionEmitter
                     var returnPrefix = member.IsVoidReturn() ? "void" : (member.ReturnsByRef ? "ref " : "") + member.ReturnTypeSignature;
                     sb.Append(returnPrefix).Append(' ').Append(accessorName);
                     EmitGenericClause(sb, MergeTypeParams(type.TypeParameterNames, member.MethodTypeParameters));
-                    sb.Append('(').Append(targetDisplay).Append(" self");
+                    sb.Append('(').Append(targetDisplay).Append(" @this");
                     AppendParams(sb, member, leadingComma: true);
                     sb.AppendLine(");");
                 }
@@ -232,7 +232,7 @@ internal static class ExtensionEmitter
         bool first = !includeSelf;
         if (includeSelf)
         {
-            sb.Append("self");
+            sb.Append("@this");
             first = false;
         }
         foreach (var p in member.Parameters)

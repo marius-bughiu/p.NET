@@ -100,15 +100,9 @@ So you don't have to remember whether the BCL author used `_foo`, `s_foo`, or `F
 
 ## Coverage
 
-| Namespace | Status |
-|---|---|
-| `System.Collections.Generic` | ✅ shipped |
-| `System.IO` | 🚧 planned |
-| `System.Text` | 🚧 planned |
-| `System.Threading.Tasks` | 🚧 planned |
-| `System.Net.Http` | 🚧 planned |
+**Every public type with non-public members across the entire .NET 10 BCL.**
 
-Currently included: `List<T>`, `Dictionary<K,V>`, `HashSet<T>`, `Queue<T>`, `Stack<T>`, `LinkedList<T>`, `LinkedListNode<T>`, `SortedList<K,V>`, `SortedSet<T>`, `SortedDictionary<K,V>`, `OrderedDictionary<K,V>`, `PriorityQueue<E,P>`, `KeyValuePair<K,V>`, `EqualityComparer<T>`.
+The shipped `PNet.dll` carries ~1,600 generated types across ~110 namespaces — `System`, `System.Buffers`, `System.Collections.*`, `System.IO`, `System.Net.*`, `System.Reflection`, `System.Runtime.*`, `System.Security.Cryptography`, `System.Text`, `System.Threading.*`, `Microsoft.Win32`, even `Microsoft.VisualBasic`. Anything `using PNet.<X>;` could plausibly resolve, it does. New BCL types in future .NET releases automatically light up `p_*` members on the next p.NET version.
 
 ## Performance
 

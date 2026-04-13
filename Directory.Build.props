@@ -22,7 +22,6 @@
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>private;reflection;unsafe-accessor;source-generator;performance;internals;p.net;bcl;extension-members</PackageTags>
-    <Version>0.1.0-alpha</Version>
   </PropertyGroup>
 
 </Project>
