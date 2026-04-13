@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>PNet</RootNamespace>
+    <AssemblyName>PNet</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)generated</CompilerGeneratedFilesOutputPath>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>p.NET</PackageId>
+    <Title>p.NET — Private .NET APIs at public-member speed</Title>
+    <Description>Access every private .NET API as an extension member. Import PNet.System.Collections.Generic and just use list.p_size, dict.p_count, dict.p_buckets, etc. Zero reflection, zero allocations, zero overhead — extension members are generated at build time and emit direct UnsafeAccessor calls. AOT- and trim-compatible.</Description>
+    <!-- NU5128: multi-tfm package with no dependencies — safe to ignore -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PNet.Generators\PNet.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <PropertyGroup Label="Generator configuration">
+    <!-- Semicolon-separated list of BCL namespaces the generator should emit extensions for.
+         The generator walks the runtime's impl DLLs (System.Private.CoreLib etc.) with PEReader
+         and emits extension members for every private member of every type in these namespaces. -->
+    <PNetTargetNamespaces>System.Collections.Generic</PNetTargetNamespaces>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="PNetTargetNamespaces" />
+  </ItemGroup>
+
+</Project>

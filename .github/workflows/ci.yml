@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore p.net.sln
+
+      - name: Build
+        run: dotnet build p.net.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test tests/PNet.Tests/PNet.Tests.csproj -c Release --no-build --verbosity normal
+
+      - name: Pack (smoke)
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet pack src/PNet/PNet.csproj -c Release --no-build -o ./artifacts
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: p.net-nupkg
+          path: ./artifacts/*.nupkg
