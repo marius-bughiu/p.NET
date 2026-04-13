@@ -75,6 +75,8 @@ public sealed class ExtensionMembersGenerator : IIncrementalGenerator
                     foreach (var type in deduped)
                     {
                         var source = ExtensionEmitter.Emit(ns, new[] { type });
+                        // Skip files where the emitter produced no class body (every member was filtered).
+                        if (source.IndexOf("public static class", StringComparison.Ordinal) < 0) continue;
                         var hint = "PNet." + ns.Replace('.', '_') + "." + type.TypeName + "_" + type.ArityCount + ".g.cs";
                         spc.AddSource(hint, SourceText.From(source, Encoding.UTF8));
                     }

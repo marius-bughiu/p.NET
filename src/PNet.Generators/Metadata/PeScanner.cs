@@ -67,6 +67,12 @@ internal static class PeScanner
             if (IsCompilerGenerated(reader, type.GetCustomAttributes())) continue;
             if (IsByRefLike(reader, type.GetCustomAttributes())) continue;
 
+            // Skip static classes — the emitter doesn't generate extension blocks for them
+            // (C# 14 static-extension shapes are out of scope for v1), so they would produce
+            // empty .g.cs files that just create a phantom namespace.
+            bool isStaticClass = (attrs & TypeAttributes.Abstract) != 0 && (attrs & TypeAttributes.Sealed) != 0;
+            if (isStaticClass) continue;
+
             var simpleName = StripArity(rawName);
             if (!consumer.TypeExistsByMetadataName(ns, rawName)) continue;
 

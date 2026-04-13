@@ -42,6 +42,12 @@ internal static class ExtensionEmitter
     {
         if (type.IsStatic) return;
 
+        // Nothing emittable (only static members, or all instance members were filtered out)?
+        // Skip the whole class — emitting an empty `_PrivateExtensions` stub creates a phantom
+        // namespace in PNet.dll that has no actual extension surface.
+        var instanceMembers = type.Members.Where(m => m.Kind is MemberKind.InstanceField or MemberKind.InstanceMethod).ToList();
+        if (instanceMembers.Count == 0) return;
+
         var className = type.ArityCount > 0
             ? type.TypeName + "_" + type.ArityCount + "_PrivateExtensions"
             : type.TypeName + "_PrivateExtensions";
@@ -54,8 +60,6 @@ internal static class ExtensionEmitter
         var targetDisplay = "global::" + type.Namespace + "." + type.TypeName + targetGenericArgs;
 
         // 1. Instance extensions under `extension<T...>(TargetType<T...> @this)` block
-        var instanceMembers = type.Members.Where(m => m.Kind is MemberKind.InstanceField or MemberKind.InstanceMethod).ToList();
-        if (instanceMembers.Count > 0)
         {
             sb.Append("    extension");
             if (type.TypeParameterNames.Count > 0)
